@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clickvert"
+version = "0.1.0.dev0"
+description = "Right-click file conversion for Windows File Explorer, powered by FFmpeg."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+# Clickvert has no runtime dependencies besides FFmpeg (installed separately).
+dependencies = []
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+]
+
+[project.scripts]
+clickvert = "clickvert.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
