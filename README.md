@@ -34,6 +34,7 @@ From the project folder:
 ```powershell
 $env:PYTHONPATH = "src"
 python -m clickvert convert --to gif "C:\Videos\holiday.mp4"
+python -m clickvert convert --to gif --window "C:\Videos\holiday.mp4"
 python -m clickvert formats
 ```
 
@@ -58,6 +59,7 @@ remain. It's safe to delete.
 | `src/clickvert/ffmpeg.py` | Finds FFmpeg and runs it safely |
 | `src/clickvert/paths.py` | Input checks, temp files, and no-overwrite naming |
 | `src/clickvert/errors.py` | Error types with plain-language messages |
+| `src/clickvert/progress_window.py` | The progress window (tkinter): progress bar, Cancel, result |
 | `src/clickvert/cli.py` | The `python -m clickvert` command |
 
 ## Known limitations

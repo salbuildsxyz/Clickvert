@@ -3,6 +3,7 @@
 Examples::
 
     python -m clickvert convert --to gif "C:\\Videos\\holiday.mp4"
+    python -m clickvert convert --to gif --window "C:\\Videos\\holiday.mp4"
     python -m clickvert formats
 
 In Milestone 3, File Explorer's right-click menu will run the ``convert``
@@ -33,6 +34,7 @@ def build_parser() -> argparse.ArgumentParser:
     convert.add_argument("--to", required=True, choices=sorted({c.target for c in CONVERSIONS}), help="output format")
     convert.add_argument("file", help="the file to convert")
     convert.add_argument("-q", "--quiet", action="store_true", help="don't show progress")
+    convert.add_argument("--window", action="store_true", help="show a progress window instead of terminal output")
     convert.add_argument("--verbose", action="store_true", help="show FFmpeg's details when something fails")
 
     commands.add_parser("formats", help="list supported conversions")
@@ -47,6 +49,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         for c in CONVERSIONS:
             print(f"{c.source.upper():>4} -> {c.target.upper()}")
         return 0
+
+    if args.window:
+        from .progress_window import run_window  # loads tkinter only when needed
+
+        return run_window(args.file, args.to)
 
     job = ConversionJob(args.file, args.to, on_progress=None if args.quiet else _print_progress)
     try:
