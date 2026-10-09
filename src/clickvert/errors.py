@@ -45,3 +45,9 @@ class NoAudioStreamError(ConversionFailedError):
 
 class ConversionCancelledError(ClickvertError):
     exit_code = 6
+
+
+class IntegrationError(ClickvertError):
+    """Installing or removing the right-click menu failed."""
+
+    exit_code = 7

@@ -5,9 +5,11 @@ Examples::
     python -m clickvert convert --to gif "C:\\Videos\\holiday.mp4"
     python -m clickvert convert --to gif --window "C:\\Videos\\holiday.mp4"
     python -m clickvert formats
+    python -m clickvert install --dry-run
+    python -m clickvert uninstall
 
-In Milestone 3, File Explorer's right-click menu will run the ``convert``
-command, with the clicked file's path.
+File Explorer's right-click menu runs ``convert --window`` with the clicked
+file's path (see ``shell_integration.py``).
 
 Exit codes: 0 success, 2 bad command-line usage, and otherwise the
 ``exit_code`` of the error (see ``errors.py``).
@@ -22,7 +24,7 @@ from collections.abc import Sequence
 from . import __version__
 from .conversions import CONVERSIONS
 from .converter import ConversionJob
-from .errors import ClickvertError, ConversionCancelledError
+from .errors import ClickvertError, ConversionCancelledError, IntegrationError
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -38,6 +40,11 @@ def build_parser() -> argparse.ArgumentParser:
     convert.add_argument("--verbose", action="store_true", help="show FFmpeg's details when something fails")
 
     commands.add_parser("formats", help="list supported conversions")
+
+    for name, help_text in [("install", "add Clickvert to File Explorer's right-click menu"),
+                            ("uninstall", "remove Clickvert from File Explorer's right-click menu")]:
+        menu = commands.add_parser(name, help=help_text)
+        menu.add_argument("--dry-run", action="store_true", help="only show what would change")
     return parser
 
 
@@ -49,6 +56,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         for c in CONVERSIONS:
             print(f"{c.source.upper():>4} -> {c.target.upper()}")
         return 0
+
+    if args.command in ("install", "uninstall"):
+        try:
+            return _install(args.dry_run) if args.command == "install" else _uninstall(args.dry_run)
+        except ClickvertError as exc:
+            print(f"Error: {exc.user_message}", file=sys.stderr)
+            if exc.details:
+                print(exc.details, file=sys.stderr)
+            return exc.exit_code
 
     if args.window:
         from .progress_window import run_window  # loads tkinter only when needed
@@ -71,6 +87,55 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     _end_progress_line(args.quiet)
     print(output)
+    return 0
+
+
+def _install(dry_run: bool) -> int:
+    from . import shell_integration as shell
+    from .ffmpeg import find_ffmpeg
+
+    pythonw, package_dir = shell.default_launcher()
+    if not pythonw.is_file():
+        raise IntegrationError(f"Couldn't find pythonw.exe next to {sys.executable}.")
+    keys = shell.plan(pythonw, package_dir)
+
+    if dry_run:
+        print("Dry run: nothing was changed. Installing would first remove any existing")
+        print("Clickvert menu entries, then write these registry keys:\n")
+        print(shell.describe_keys(keys))
+        return 0
+
+    shell.install(shell.WindowsRegistry(), keys)
+    print("Clickvert was added to the right-click menu for: " + ", ".join(shell.source_extensions()))
+    print('On Windows 11, right-click a file and choose "Show more options" (or press Shift + right-click).')
+    print(f"The menu runs Clickvert from {package_dir}. If you move this folder, run install again.")
+    try:
+        find_ffmpeg()
+    except ClickvertError as exc:
+        print(f"\nWarning: {exc.user_message}", file=sys.stderr)
+    return 0
+
+
+def _uninstall(dry_run: bool) -> int:
+    from . import shell_integration as shell
+
+    registry = shell.WindowsRegistry()
+    if dry_run:
+        existing = [k for k in shell.menu_keys() if registry.key_exists(k)]
+        print("Dry run: nothing was changed.")
+        if not existing:
+            print("Clickvert's right-click menu isn't installed, so there's nothing to remove.")
+        for key in existing:
+            print(f"Would delete [{shell.full_name(key)}] and everything inside it")
+        return 0
+
+    removed = shell.uninstall(registry)
+    if removed:
+        print("Clickvert was removed from the right-click menu. Removed:")
+        for key in removed:
+            print(f"  {shell.full_name(key)}")
+    else:
+        print("Clickvert's right-click menu wasn't installed. Nothing to remove.")
     return 0
 
 
